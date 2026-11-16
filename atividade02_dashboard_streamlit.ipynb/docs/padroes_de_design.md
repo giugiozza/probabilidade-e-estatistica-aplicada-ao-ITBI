@@ -1,0 +1,135 @@
+# Padrão de design e visualizações do dashboard
+
+## Grade desktop em uma tela
+
+A composição atual usa `100dvh`, cabeçalho de 56–64 px, margens de 8–10 px e linhas
+22/48/30. O mapa ocupa uma coluna vertical nas duas primeiras linhas; indicadores ficam
+acima da evolução e dispersão, que recebem prioridade de altura para leitura do eixo Y.
+Barras e comparação ocupam a linha inferior. Painéis têm `min-height: 0` e `min-width: 0`. Fundo cinza claro, cartões brancos,
+bordas discretas, títulos azul-marinho, seleção vermelha e deltas positivos verdes,
+sempre acompanhados de texto. Não usar escala global nem ocultar overflow da página.
+
+Os gráficos recebem dimensões reais por ResizeObserver. O mapa é reenquadrado após resize,
+com zoom fracionário e tooltip contido na área visível. Ranking tem limite explícito;
+seletores múltiplos e metodologia usam diálogos. A navegação destaca os painéis existentes.
+Usar o brasão real; não há fotografia de bairro disponível.
+
+Este documento orienta a identidade visual, a interação e a implementação das visualizações do dashboard de ITBI de Porto Alegre. O público principal são compradores e famílias em busca do primeiro imóvel; corretores e avaliadores são públicos secundários. A interface deve facilitar comparação e leitura de dados, sem parecer uma página promocional.
+
+## Identidade visual
+
+A bandeira de Porto Alegre é branca, com o brasão municipal ao centro, conforme a Lei Municipal nº 3.893/1974. O dashboard deve seguir essa identidade:
+
+- Use branco como cor predominante de fundo, refletindo a bandeira e preservando espaço visual para os dados.
+- Derive as cores de destaque dos tons presentes no brasão oficial. Não invente uma paleta municipal nem fixe valores hexadecimais sem conferir o arquivo oficial do brasão.
+- O SVG oficial do brasão define azul `#3669B2`, vermelho `#E40A24`, verde `#4AB05B` e ouro `#FFD402`; a bandeira usa campo branco `#FFFFFF`. Use esses códigos em cores de acento quando houver contraste suficiente. Para linhas e textos pequenos, use os tons escurecidos `#1B5E45` (verde) e `#805D0F` (ouro), já adotados no tema.
+- Use cinzas neutros para textos secundários, divisórias e estados desabilitados. Reserve as cores do brasão para hierarquia, seleção e destaque de dados.
+- Mantenha as cores semânticas consistentes entre gráficos. Uma mesma categoria ou estado deve conservar sua cor em todo o dashboard.
+- Em escalas quantitativas, use uma sequência ordenada, legível e coerente com a identidade municipal. Não use arco-íris nem dependa apenas da cor para comunicar o valor.
+- Garanta contraste suficiente entre texto, fundo, linhas e áreas preenchidas; combine cores com rótulos, unidades, legenda ou tooltip.
+
+Referência municipal: [Bandeira de Porto Alegre — Informações da Cidade (PMPA, arquivo histórico)](https://web.archive.org/web/20070611023133/http://www2.portoalegre.rs.gov.br/infocidade/default.php?reg=3&p_secao=22).
+O brasão municipal associa ouro, azul, verde, vermelho e prata às cores e símbolos locais: [Brasão de Porto Alegre — Informações da Cidade (PMPA, arquivo histórico)](https://web.archive.org/web/20070611023125/http://www2.portoalegre.rs.gov.br/infocidade/default.php?reg=2&p_secao=22).
+
+## Hierarquia e composição
+
+- Apresente um título direto, seguido de contexto curto sobre o recorte, a fonte e a interpretação das medidas.
+- Organize a página na ordem de uso: filtros, indicadores de resumo e, em seguida, visualizações detalhadas.
+- Use títulos de seção e espaçamento para agrupar conteúdo relacionado. Evite painéis decorativos, excesso de cartões e elementos que disputem atenção com os dados.
+- Dê prioridade ao mapa e aos gráficos na área principal; deixe controles globais na barra lateral.
+- Use `st.container` ou colunas apenas quando ajudarem a agrupar ou comparar conteúdo. Preserve a leitura em telas estreitas.
+
+## Tipografia, rótulos e números
+
+- Use tipografia simples e legível, com hierarquia consistente entre título da página, seções, títulos de gráficos e texto de apoio.
+- Escreva em português e prefira frases curtas, termos compreensíveis e capitalização de frase.
+- Explique “mediana” e “base de cálculo” em linguagem simples. Deixe claro que a base de cálculo é uma base fiscal do ITBI, usada como aproximação, e não necessariamente o preço de mercado.
+- Identifique unidades em eixos, legendas e tooltips: R$, R$/m², m² ou ano, conforme a variável.
+- Formate valores monetários de modo consistente e localizável para o público brasileiro; mantenha a mesma precisão dentro de cada visualização.
+- Evite nomes internos de colunas, abreviações sem explicação e texto cortado.
+
+## Interação e estados
+
+- Use controles adequados à escolha: slider para intervalos numéricos, multiselect para bairros e controle de seleção para métricas.
+- A seleção padrão deve mostrar o panorama completo disponível. Cada filtro deve atualizar todas as visualizações a que se aplica, sem deixar gráficos com períodos ou populações diferentes por acidente.
+- Identifique o período, as métricas e a população usados na tela. Quando os filtros não retornarem dados, mostre um aviso claro e não desenhe gráficos vazios.
+- Mantenha filtros e títulos estáveis durante reruns; atribua chaves explícitas quando controles puderem se repetir.
+
+## Gráficos e mapas
+
+Escolha a forma visual de acordo com a pergunta: linhas para evolução temporal, barras ordenadas para rankings e coroplético para padrões geográficos. Cada visualização deve ter título, unidade, legenda ou tooltip e uma frase curta de leitura quando isso ajudar na interpretação.
+- Preserve a escala `YlOrRd` já definida para o coroplético do mapa: ela codifica o valor e deve permanecer estável, separada das cores do tema geral.
+
+Para o mapa por bairro:
+
+- Mantenha todos os polígonos oficiais do GeoJSON, mesmo quando não houver transações no período selecionado.
+- Use a mediana do valor por m² por `bairro_oficial`; mantenha uma escala ordenada, legenda em R$/m² e tooltip com bairro e valor.
+- Mostre áreas sem dados com uma cor neutra distinta da escala. Não as confunda com valores baixos ou zero.
+- No mapa unificado, enquadre os polígonos oficiais e use OpenStreetMap com opacidade de 50%; destaque o bairro em foco com contorno azul.
+- No mapa de quantidade de registros, mantenha o mapa-base original com opacidade de 50% em toda a área. Use a escala roxa do mais claro ao mais escuro `#E0AAFF` → `#C77DFF` → `#9D4EDD` → `#7B2CBF` → `#5A189A` → `#3C096C` → `#240046` → `#100028`; valores maiores devem usar tons mais escuros. Os preenchimentos roxos e brancos usam opacidade fixa de 80%; mantenha os limites pretos sólidos.
+- Categorias sem geometria, como `JAR ITU SABARA`, não podem ser desenhadas. Informe-as separadamente; não atribua seus registros a outro bairro.
+
+## Responsabilidades no código
+
+- `app.py` configura a página, carrega os dados, apresenta controles, aplica filtros, trata estados vazios, organiza a hierarquia e renderiza as visualizações.
+- `charts.py` contém um construtor independente por visualização. Cada construtor recebe os dados já filtrados e parâmetros adicionais explícitos, calcula apenas a agregação específica do gráfico e retorna o objeto visual.
+- `pipeline.py` é responsável pela preparação compartilhada dos dados. Não duplique o funil em `app.py` ou `charts.py`.
+
+Os construtores não chamam APIs `st.*`, não carregam arquivos e não alteram o DataFrame recebido. A renderização fica em `app.py`:
+
+| Objeto retornado | Renderização em `app.py` |
+|---|---|
+| Figura Plotly | `st.plotly_chart(...)` |
+| Gráfico Altair | `st.altair_chart(...)` |
+| Mapa Folium | `st_folium(...)` |
+
+Use nomes descritivos no formato `build_<visualizacao>`. Mantenha os construtores juntos em `charts.py` enquanto o módulo continuar simples; crie outro módulo apenas quando houver uma necessidade concreta de separar uma família ou lógica realmente compartilhada.
+
+Exemplo do fluxo atual:
+
+```python
+# charts.py
+def build_yearly_median_chart(df_filtrado):
+    dados_do_grafico = ...
+    grafico = ...
+    return grafico
+
+# app.py
+st.subheader("Título da visualização")
+st.plotly_chart(build_yearly_median_chart(df_filtrado), width="stretch")
+```
+
+## Acessibilidade e validação
+
+- Não comunique diferenças apenas por cor; complemente-as com rótulos, padrões, símbolos ou tooltips.
+- Use contraste legível, controles acessíveis por teclado e nomes claros para os widgets.
+- Faça títulos, rótulos e valores caberem em desktop e celular; prefira quebra de linha a corte ou sobreposição.
+- Valide cálculos com `check_data.py` quando houver valores de referência. Use `AppTest` ou execute o app para confirmar que a visualização renderiza sem exceções.
+- Revise combinações de filtros, seleção vazia, dados ausentes e categorias sem geometria antes de considerar um gráfico concluído.
+
+## Explorador territorial
+Cabeçalho com brasão, mapa à esquerda e painel de foco à direita, análises complementares
+abaixo. Um mapa selecionável, mantendo YlOrRd para medianas e roxo para contagem.
+Variação usa escala divergente simétrica em torno de zero. Cinza distingue dados ausentes
+ou insuficientes. Tooltip informa cobertura e quantidades. Deltas são neutros.
+Selectbox oferece seleção estável de bairro. Não há fotos ou números ilustrativos.
+metrics.py reúne cálculos compartilhados; charts.py permanece sem chamadas st.*.
+
+
+## Views do componente — 29/09/2026
+
+Estas regras substituem exemplos anteriores de renderização direta por widgets Streamlit.
+O host `app.py` envia um payload ao componente existente; HTML/CSS/JS organizam as views.
+`state.view` controla navegação real e `aria-current`. Cabeçalho e brasão são compartilhados.
+
+Visão geral: fundo claro, cards brancos, títulos azul-marinho, seleção vermelha, linha de bairro
+azul e cidade tracejada. Introdução e KPIs acima dos filtros; P1 em largura total; P2/P3 em
+44%/56%; resumo do bairro e metodologia abaixo. Títulos completos podem quebrar linha.
+CSS novo é restrito a `.overview-*` e à view de comparação. Não alterar o grid analítico existente.
+A altura dos gráficos é explícita e eles são redesenhados ao exibir a view ou redimensionar.
+Mapa recebe invalidateSize/fitBounds no resize do iframe. Views ocultas não renderizam gráficos.
+
+Mínimo insuficiente: mapa cinza, medianas indisponíveis no tooltip/resumo e mensagem nas barras
+vazias. Cidade não é filtrada pelo mínimo. Seleção vazia mostra convite à exploração e desabilita
+o botão de aprofundamento. Não usar números ilustrativos nem indicar valorização imobiliária:
+os deltas representam medianas fiscais nominais de amostras cuja composição pode mudar.
